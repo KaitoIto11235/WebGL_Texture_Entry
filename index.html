@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebGL入門</title>
+    <script src="./main.js"></script> <!-- main.jsを読み込む -->
+    <script src="./minMatrix.js"></script>
+
+    <!-- create vertex shader -->
+    <!-- attributeをつけた変数に、WebGL側であらかじめ仕込まれたデータが渡される -->
+    <!-- uniform修飾子をつけた変数は、すべての頂点に対して一律にに処理される情報をを渡す -->
+    <!-- lightDirectionは、ローカル座標上で計算された光源ベクトルであるが光源はワールド座標に固定されるべきだから、
+     モデルと一緒に座標変換するべきではない。そこで逆行列をかけ反対の座標変換をすることで、そのモデルの座標変換の影響を打ち消す-->
+    <!-- diffuseは拡散光、specularは反射光を表す -->
+    <!-- WebGLから頂点シェーダに渡される頂点の座標は座標変換前のもの。
+     なぜなら、WebGL側ではすべての頂点に対してまとめて操作することができないから（CPU）
+     そのため、モデル変換行列もシェーダに渡すことで、点光源のライトベクトルが計算できる。 -->
+    <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec3 position;
+      attribute vec3 normal;
+      attribute vec4 color;
+      uniform mat4 mvpMatrix;
+      uniform mat4 mMatrix;
+      varying vec3 vPosition;
+      varying vec3 vNormal;
+      varying vec4 vColor;
+
+      void main(void){
+        vPosition      = (mMatrix * vec4(position, 1.0)).xyz;
+        vNormal        = normal;
+        vColor         = color;
+        gl_Position    = mvpMatrix * vec4(position, 1.0);
+      }
+    </script>
+
+    <!-- create fragment shader -->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+      precision mediump float;
+
+      uniform mat4 invMatrix;
+      uniform vec3 lightPosition1;
+      uniform vec3 lightPosition2;
+      uniform vec3 eyeDirection;
+      uniform vec4 ambientColor;
+      varying vec3 vPosition;
+      varying vec3 vNormal;
+      varying vec4 vColor;
+
+      void main(void){
+        vec3  lightVec1  = lightPosition1 - vPosition;
+        vec3  lightVec2  = lightPosition2 - vPosition;
+        vec3  invLight1  = normalize(invMatrix * vec4(lightVec1, 0.0)).xyz;
+        vec3  invLight2  = normalize(invMatrix * vec4(lightVec2, 0.0)).xyz;
+        vec3  invEye    = normalize(invMatrix * vec4(eyeDirection, 0.0)).xyz;
+        vec3  halfLE1    = normalize(invLight1 + invEye);
+        vec3  halfLE2    = normalize(invLight2 + invEye);
+        float diffuse1   = clamp(dot(vNormal, invLight1), 0.0, 0.7);
+        float diffuse2   = clamp(dot(vNormal, invLight2), 0.0, 0.7);
+        float specular1  = pow(clamp(dot(vNormal, halfLE1), 0.0, 1.0), 100.0);
+        float specular2  = pow(clamp(dot(vNormal, halfLE2), 0.0, 1.0), 100.0);
+        vec4  destColor = vColor * (vec4(vec3(diffuse1), 1.0) + vec4(vec3(diffuse2), 1.0))+ vec4(vec3(specular1), 1.0) + vec4(vec3(specular2), 1.0) + ambientColor;
+        gl_FragColor    = destColor;
+      }
+    </script>
+  </head>
+
+  <body>
+    <!-- bodyタグの中にCanvasを配置する -->
+    <canvas id="canvas"></canvas>
+  </body>
+</html>
