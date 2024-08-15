@@ -16,49 +16,33 @@
      そのため、モデル変換行列もシェーダに渡すことで、点光源のライトベクトルが計算できる。 -->
     <script id="vertexShader" type="x-shader/x-vertex">
       attribute vec3 position;
-      attribute vec3 normal;
       attribute vec4 color;
+      attribute vec2 textureCoord;
       uniform mat4 mvpMatrix;
-      uniform mat4 mMatrix;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
       varying vec4 vColor;
+      varying vec2 vTextureCoord;
 
       void main(void){
-        vPosition      = (mMatrix * vec4(position, 1.0)).xyz;
-        vNormal        = normal;
         vColor         = color;
+        vTextureCoord  = textureCoord;
         gl_Position    = mvpMatrix * vec4(position, 1.0);
       }
     </script>
 
     <!-- create fragment shader -->
+     <!-- ある頂点におけるテクスチャ座標について、textureを参照しどの色になるかを対応付けるのがtexture2D -->
     <script id="fragmentShader" type="x-shader/x-fragment">
       precision mediump float;
 
-      uniform mat4 invMatrix;
-      uniform vec3 lightPosition1;
-      uniform vec3 lightPosition2;
-      uniform vec3 eyeDirection;
-      uniform vec4 ambientColor;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
-      varying vec4 vColor;
+      uniform sampler2D texture0;
+      uniform sampler2D texture1;
+      varying vec4      vColor;
+      varying vec2      vTextureCoord;
 
       void main(void){
-        vec3  lightVec1  = lightPosition1 - vPosition;
-        vec3  lightVec2  = lightPosition2 - vPosition;
-        vec3  invLight1  = normalize(invMatrix * vec4(lightVec1, 0.0)).xyz;
-        vec3  invLight2  = normalize(invMatrix * vec4(lightVec2, 0.0)).xyz;
-        vec3  invEye    = normalize(invMatrix * vec4(eyeDirection, 0.0)).xyz;
-        vec3  halfLE1    = normalize(invLight1 + invEye);
-        vec3  halfLE2    = normalize(invLight2 + invEye);
-        float diffuse1   = clamp(dot(vNormal, invLight1), 0.0, 0.7);
-        float diffuse2   = clamp(dot(vNormal, invLight2), 0.0, 0.7);
-        float specular1  = pow(clamp(dot(vNormal, halfLE1), 0.0, 1.0), 100.0);
-        float specular2  = pow(clamp(dot(vNormal, halfLE2), 0.0, 1.0), 100.0);
-        vec4  destColor = vColor * (vec4(vec3(diffuse1), 1.0) + vec4(vec3(diffuse2), 1.0))+ vec4(vec3(specular1), 1.0) + vec4(vec3(specular2), 1.0) + ambientColor;
-        gl_FragColor    = destColor;
+        vec4 smpColor0   = texture2D(texture0, vTextureCoord);
+        vec4 smpColor1   = texture2D(texture1, vTextureCoord);
+        gl_FragColor    = vColor * smpColor0 * smpColor1;
       }
     </script>
   </head>
