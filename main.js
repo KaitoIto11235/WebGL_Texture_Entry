@@ -4,6 +4,11 @@ document.addEventListener('DOMContentLoaded', function () {
     canvas.width = innerWidth;
     canvas.height = innerHeight;
 
+    // 各種エレメントへの参照を取得
+    const elmTransparency = document.getElementById('transparency');
+	const elmAdd          = document.getElementById('add');
+	const elmRange        = document.getElementById('range');
+
 
     // canvas要素からwebglコンテキストを取得する
     const gl = canvas.getContext('webgl');
@@ -17,7 +22,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // シェーダ作成→ソース割り当て→コンパイル
     const v_shader = create_shader('vertexShader');
     const f_shader = create_shader('fragmentShader');
-
+    console.log(v_shader);
+    console.log(f_shader);
     // プログラムオブジェクトの生成とリンク
     // シェーダをプログラムオブジェクトに割り当て、リンクする
     const prg = create_program(v_shader, f_shader);
@@ -36,26 +42,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 頂点の位置
     const position = [
-        -3.0,  3.0,  0.0,
-        3.0,  3.0,  0.0,
-        -3.0, -3.0,  0.0,
-        3.0, -3.0,  0.0
+        -1.0,  1.0,  0.0,
+        1.0,  1.0,  0.0,
+        -1.0, -1.0,  0.0,
+        1.0, -1.0,  0.0
     ];
 
     // 頂点色
     const color = [
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+        1.0, 0.0, 0.0, 1.0,
+        0.0, 0.0, 1.0, 1.0
     ];
 
     // テクスチャ座標
     const textureCoord = [
         0.0, 0.0,
         3.0, 0.0,
-        0.0, 1.0,
-        3.0, 1.0
+        0.0, 2.0,
+        3.0, 2.0
     ];
 
     // 頂点インデックス
@@ -89,13 +95,13 @@ document.addEventListener('DOMContentLoaded', function () {
     //prgオブジェクトにあるシェーダのuniform変数’mvpMatrix’が
     //uniform変数の中で何番目のものかを取得
     uniLocation[0] = gl.getUniformLocation(prg, 'mvpMatrix');
-    uniLocation[1] = gl.getUniformLocation(prg, 'texture0');
-    uniLocation[2] = gl.getUniformLocation(prg, 'texture1');
+    uniLocation[1] = gl.getUniformLocation(prg, 'vertexAlpha');
+    uniLocation[2] = gl.getUniformLocation(prg, 'texture0');
+    uniLocation[3] = gl.getUniformLocation(prg, 'useTexture');
 
     // minMatrix.js を用いた行列関連処理
     // matIVオブジェクトを生成
     let m = new matIV();
-    
     // 各種行列の生成と初期化
     let mMatrix = m.identity(m.create());
     let vMatrix = m.identity(m.create());
@@ -106,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ビュー座標変換行列
     m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
     // プロジェクション座標変換行列
-    m.perspective(90, canvas.width / canvas.height, 0.1, 100, pMatrix);
+    m.perspective(45, canvas.width / canvas.height, 0.1, 100, pMatrix);
     // ビュー×プロジェクション座標変換行列を完成させる
     m.multiply(pMatrix, vMatrix, tmpMatrix);
 
@@ -120,20 +126,22 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // 有効にするテクスチャユニットを指定
     gl.activeTexture(gl.TEXTURE0);
-
     // テクスチャ用変数の宣言
     let texture0 = null;
-    let texture1 = null;
-
     // テクスチャを生成
     create_texture('texture0.png', 0);
-    create_texture('texture1.png', 1);
 
     // カウンタの宣言
     let count = 0;
 
     // 恒常ループ
     (function(){
+        // エレメントから値を取得しブレンドタイプを設定
+        if(elmTransparency.checked)[blend_type(0)]
+        if(elmAdd.checked)[blend_type(1)]
+        // エレメントからα成分を取得
+        const vertexAlpha = parseFloat(elmRange.value / 100);
+
         // canvasを初期化
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
@@ -141,34 +149,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
         count++;
         // カウンタを元にラジアンと各種座標を算出
-        const rad = (count % 360) * Math.PI / 180;
+        const rad1 = (count % 360) * Math.PI / 180;
+        const rad2 = ((count/2) % 360) * Math.PI / 180;
 
-        // テクスチャユニット0を有効化
-        gl.activeTexture(gl.TEXTURE0);
-        // テクスチャをバインドする
-        gl.bindTexture(gl.TEXTURE_2D, texture0);
-        // uniform変数にテクスチャを登録
-        gl.uniform1i(uniLocation[1], 0);
+        // モデル座標変換行列の生成
+		m.identity(mMatrix);
+		m.translate(mMatrix, [0.25, 0.25, -0.25], mMatrix);
+		m.rotate(mMatrix, rad1, [0, 1, 0], mMatrix);
+		m.multiply(tmpMatrix, mMatrix, mvpMatrix);
+		
+		// テクスチャのバインド
+		gl.bindTexture(gl.TEXTURE_2D, texture0);
 
-        // テクスチャユニット1を有効化
-        gl.activeTexture(gl.TEXTURE1);
-        // テクスチャをバインドする
-        gl.bindTexture(gl.TEXTURE_2D, texture1);
-        // uniform変数にテクスチャを登録
-        gl.uniform1i(uniLocation[2], 1);
         // テクスチャパラメータの設定
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+		
+		// ブレンディングを無効にする
+		gl.disable(gl.BLEND);
+		
+		// uniform変数の登録と描画
+		gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
+		gl.uniform1f(uniLocation[1], 1.0);
+		gl.uniform1i(uniLocation[2], 0);
+		gl.uniform1i(uniLocation[3], true);
+		gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+		
 
-        m.identity(mMatrix);
-        m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
-        // モデル1の座標変換行列を完成させレンダリングする
-        m.multiply(tmpMatrix, mMatrix, mvpMatrix);
+        
 
-        // フラグメントシェーダのuniformLocationへ座標変換行列を登録する（一つ目のモデル）
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+        // モデル座標変換行列の生成
+		m.identity(mMatrix);
+		m.translate(mMatrix, [-0.25, -0.25, 0.25], mMatrix);
+		m.rotate(mMatrix, rad2, [0, 0, 1], mMatrix);
+		m.multiply(tmpMatrix, mMatrix, mvpMatrix);
+		
+		// テクスチャのバインドを解除
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		
+		// ブレンディングを有効にする
+		gl.enable(gl.BLEND);
+		
+		// uniform変数の登録と描画
+		gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
+		gl.uniform1f(uniLocation[1], vertexAlpha);
+		gl.uniform1i(uniLocation[2], 0);
+		gl.uniform1i(uniLocation[3], false);
+		gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+
 
         // コンテキストの再描画
         gl.flush();
@@ -444,6 +473,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return {position : pos, normal : nor, color : col, index : idx};
     }
 
+    // イメージオブジェクトを作成し、ソースを割り当て
+    // 割り当て後、テクスチャオブジェクトとイメージを結びつける
     function create_texture(source, number){
         // イメージオブジェクトの生成
         const img = new Image();
@@ -485,5 +516,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // イメージオブジェクトのソースを指定
         img.src = source;
+    }
+
+    // ブレンドタイプを設定する関数
+    function blend_type(prm){
+        switch(prm){
+            // 透過処理
+            case 0:
+                //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
+                break;
+            // 加算合成
+            case 1:
+                //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+                gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+                break;
+            default:
+                break;
+        }
     }
 });

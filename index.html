@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang = "ja">
   <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>WebGL入門</title>
     <script src="./main.js"></script> <!-- main.jsを読み込む -->
     <script src="./minMatrix.js"></script>
@@ -15,15 +16,16 @@
      なぜなら、WebGL側ではすべての頂点に対してまとめて操作することができないから（CPU）
      そのため、モデル変換行列もシェーダに渡すことで、点光源のライトベクトルが計算できる。 -->
     <script id="vertexShader" type="x-shader/x-vertex">
-      attribute vec3 position;
-      attribute vec4 color;
-      attribute vec2 textureCoord;
-      uniform mat4 mvpMatrix;
-      varying vec4 vColor;
-      varying vec2 vTextureCoord;
+      attribute vec3  position;
+      attribute vec4  color;
+      attribute vec2  textureCoord;
+      uniform   mat4  mvpMatrix;
+      uniform   float vertexAlpha;
+      varying   vec4  vColor;
+      varying   vec2  vTextureCoord;
 
       void main(void){
-        vColor         = color;
+        vColor         = vec4(color.rgb, color.a * vertexAlpha);
         vTextureCoord  = textureCoord;
         gl_Position    = mvpMatrix * vec4(position, 1.0);
       }
@@ -35,20 +37,38 @@
       precision mediump float;
 
       uniform sampler2D texture0;
-      uniform sampler2D texture1;
+      uniform int       useTexture;
       varying vec4      vColor;
       varying vec2      vTextureCoord;
 
       void main(void){
-        vec4 smpColor0   = texture2D(texture0, vTextureCoord);
-        vec4 smpColor1   = texture2D(texture1, vTextureCoord);
-        gl_FragColor    = vColor * smpColor0 * smpColor1;
+        vec4 destColor = vec4(0.0);
+        if(bool(useTexture)){
+          vec4 smpColor = texture2D(texture0, vTextureCoord);
+          destColor = vColor * smpColor;
+        }else{
+          destColor = vColor;
+        }
+        gl_FragColor = destColor;
       }
     </script>
   </head>
 
   <body>
+    <header>
+      <h1>WebGL_Output</h1>
+    </header>
     <!-- bodyタグの中にCanvasを配置する -->
     <canvas id="canvas"></canvas>
+    <p>
+      <input id="transparency" name="blend" type="radio" checked> transparency
+      <input id="add" name="blend" type="radio"> add
+    </p>
+    <p>
+      <input id="range" type="range" min="0" max="100" value="70"> vertex alpha value(0% - 100%)
+    </p>
+    <hr>
+    <a href="https://wgld.org/">参考サイト</a>
+    
   </body>
 </html>
